@@ -78,7 +78,7 @@ def display_summary(insights_file=INSIGHTS_FILE):
 if __name__ == "__main__":
     # START WITH MOCK DATA
     # Change to False when ready for real APIs
-    insights = run_intelligence_pipeline(use_mock=True)
+    insights = run_intelligence_pipeline(use_mock=False)
     
     if insights:
         display_summary()
