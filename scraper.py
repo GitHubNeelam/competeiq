@@ -12,14 +12,25 @@ class CompetitorScraper:
         self.api_key = TINYFISH_API_KEY
         self.api_url = TINYFISH_API_URL
         
-    def scrape_url(self, url):
-        """Scrape a single URL"""
-        print(f"  🕷️  Scraping: {url}")
+    def scrape_url(self, url, page_type='general'):
+        """Scrape a single URL with context-aware goals"""
+        print(f"  🕷️  Scraping {page_type}: {url}")
         
-        if 'pricing' in url:
-            goal = f"Extract all pricing tiers and prices from {url}. Return as text."
+        # Create smart goals based on page type
+        if page_type == 'homepage':
+            goal = f"Extract the main value proposition, hero headline, and primary messaging from {url}. Return as detailed text."
+        elif page_type == 'pricing':
+            goal = f"Extract all pricing tiers, prices, plan names, and whether there's a free tier from {url}. Return as detailed text."
+        elif page_type == 'features':
+            goal = f"Extract all key features, capabilities, and strategic focus areas from {url}. Return as detailed text."
+        elif page_type == 'g2':
+            goal = f"Extract the overall rating (out of 5), total number of reviews, common praise themes, and common complaints from {url}. Return as detailed text."
+        elif page_type == 'changelog':
+            goal = f"Extract recent product launches and new features announced in the last 6 months from {url}. Return as detailed text."
+        elif page_type == 'customers':
+            goal = f"Extract customer company names, their sizes/industries, and any case study details from {url}. Return as detailed text."
         else:
-            goal = f"Extract all key features from {url}. Return as text."
+            goal = f"Extract main content from {url}. Return as detailed text."
         
         try:
             headers = {
@@ -33,7 +44,7 @@ class CompetitorScraper:
                 self.api_url,
                 headers=headers,
                 json=payload,
-                timeout=60,
+                timeout=90,
                 stream=True
             )
             
@@ -47,26 +58,29 @@ class CompetitorScraper:
                                 data = json.loads(decoded[6:])
                                 if 'content' in data:
                                     content += data['content']
+                                elif 'result' in data:
+                                    content += str(data['result'])
                             except:
                                 pass
                 
                 print(f"    ✅ Success! Got {len(content)} characters")
                 return {
                     'url': url,
+                    'page_type': page_type,
                     'content': content,
                     'status': 'success',
                     'scraped_at': datetime.now().isoformat()
                 }
             else:
                 print(f"    ❌ Failed: {response.status_code}")
-                return {'url': url, 'content': '', 'status': 'failed'}
+                return {'url': url, 'page_type': page_type, 'content': '', 'status': 'failed'}
                 
         except Exception as e:
             print(f"    ❌ Error: {str(e)}")
-            return {'url': url, 'content': '', 'status': 'error', 'error': str(e)}
+            return {'url': url, 'page_type': page_type, 'content': '', 'status': 'error', 'error': str(e)}
     
     def scrape_competitor(self, comp_id, comp_info):
-        """Scrape one competitor"""
+        """Scrape all pages for one competitor"""
         print(f"\n📊 Scraping {comp_info['name']}...")
         
         results = {
@@ -74,13 +88,23 @@ class CompetitorScraper:
             'pages': {}
         }
         
-        if 'pricing_url' in comp_info:
-            results['pages']['pricing'] = self.scrape_url(comp_info['pricing_url'])
-            time.sleep(2)
+        # Scrape all 6 page types
+        page_types = [
+            ('homepage_url', 'homepage'),
+            ('pricing_url', 'pricing'),
+            ('features_url', 'features'),
+            ('g2_url', 'g2'),
+            ('changelog_url', 'changelog'),
+            ('customers_url', 'customers')
+        ]
         
-        if 'features_url' in comp_info:
-            results['pages']['features'] = self.scrape_url(comp_info['features_url'])
-            time.sleep(2)
+        for url_key, page_type in page_types:
+            if url_key in comp_info:
+                results['pages'][page_type] = self.scrape_url(
+                    comp_info[url_key], 
+                    page_type=page_type
+                )
+                time.sleep(3)  # Be nice to APIs
         
         return results
     
